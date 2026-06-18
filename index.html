@@ -42,7 +42,6 @@
     padding: 2rem 1rem;
   }
 
-  /* Header */
   .header {
     text-align: center;
     margin-bottom: 2rem;
@@ -73,7 +72,6 @@
     color: var(--muted);
   }
 
-  /* Card */
   .card {
     background: var(--surface);
     border: 0.5px solid var(--border);
@@ -83,13 +81,20 @@
     max-width: 500px;
   }
 
-  /* Form */
   .row {
     display: grid;
     grid-template-columns: 1fr 130px;
     gap: 12px;
     margin-bottom: 1.25rem;
   }
+  
+  .protocol-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 1.25rem;
+  }
+  
   .field { margin-bottom: 1.25rem; }
   label {
     display: block;
@@ -101,7 +106,8 @@
     letter-spacing: 0.06em;
   }
   input[type="text"],
-  input[type="number"] {
+  input[type="number"],
+  select {
     width: 100%;
     background: var(--bg);
     border: 0.5px solid var(--border);
@@ -112,11 +118,11 @@
     padding: 10px 14px;
     outline: none;
     transition: border-color 0.15s;
+    appearance: auto;
   }
-  input:focus { border-color: var(--border-focus); }
+  input:focus, select:focus { border-color: var(--border-focus); }
   input::placeholder { color: #3a3d4a; }
 
-  /* Drop zone */
   .drop-zone {
     border: 1px dashed rgba(255,255,255,0.1);
     border-radius: var(--radius);
@@ -143,10 +149,8 @@
   .dz-file .change { font-size: 11px; color: var(--muted); margin-top: 4px; text-decoration: underline; cursor: pointer; }
   input[type="file"] { display: none; }
 
-  /* Divider */
   hr { border: none; border-top: 0.5px solid var(--border); margin: 1.5rem 0; }
 
-  /* Send button */
   .send-btn {
     width: 100%;
     padding: 12px;
@@ -169,7 +173,6 @@
   .send-btn:disabled { background: var(--surface2); color: #3a3d4a; cursor: not-allowed; }
   .send-btn svg { flex-shrink: 0; }
 
-  /* Log */
   .log-box {
     margin-top: 1.5rem;
     background: var(--bg);
@@ -192,7 +195,6 @@
   .log-line.info { color: var(--accent); }
   .log-line.warn { color: var(--warn); }
 
-  /* Note */
   .note {
     font-size: 12px;
     color: var(--muted);
@@ -212,7 +214,6 @@
     border-radius: 4px;
   }
 
-  /* Footer */
   .footer {
     margin-top: 1.5rem;
     font-size: 12px;
@@ -220,9 +221,24 @@
     text-align: center;
     font-family: var(--mono);
   }
+  
+  .status-indicator {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    margin-right: 6px;
+  }
+  .status-indicator.secure {
+    background: var(--ok);
+  }
+  .status-indicator.insecure {
+    background: var(--warn);
+  }
 
   @media (max-width: 480px) {
     .row { grid-template-columns: 1fr; }
+    .protocol-row { grid-template-columns: 1fr; }
     .card { padding: 1.5rem; }
   }
 
@@ -243,8 +259,8 @@
 </div>
 
 <div class="card">
-  <div class="note">
-    <strong>Heads up:</strong> Browsers use WebSocket, not raw TCP. Point this at a WebSocket-enabled server or run a small proxy — see <code>ws_proxy.py</code> in the repo.
+  <div class="note" id="protocolNote">
+    <strong>🔒 Secure Context:</strong> Page loaded over HTTPS. Using <span id="protocolDisplay">WSS</span> (WebSocket Secure) by default.
   </div>
 
   <div class="row">
@@ -255,6 +271,22 @@
     <div>
       <label for="port">Port</label>
       <input type="number" id="port" placeholder="50000" value="50000" min="1" max="65535">
+    </div>
+  </div>
+
+  <div class="protocol-row">
+    <div>
+      <label for="protocol">Protocol</label>
+      <select id="protocol">
+        <option value="wss">WSS (Secure) 🔒</option>
+        <option value="ws">WS (Insecure) ⚠️</option>
+      </select>
+    </div>
+    <div>
+      <label for="protocolStatus">Status</label>
+      <div style="padding: 10px 14px; background: var(--bg); border-radius: var(--radius); border: 0.5px solid var(--border); font-family: var(--mono); font-size: 13px;">
+        <span id="protocolStatus">✅ Secure</span>
+      </div>
     </div>
   </div>
 
@@ -297,6 +329,9 @@
   const logBox    = document.getElementById('logBox');
   const hostEl    = document.getElementById('host');
   const portEl    = document.getElementById('port');
+  const protocolEl = document.getElementById('protocol');
+  const protocolStatus = document.getElementById('protocolStatus');
+  const protocolDisplay = document.getElementById('protocolDisplay');
 
   let selectedFile = null;
 
@@ -328,6 +363,34 @@
     updateBtn();
   }
 
+  // Update protocol status
+  function updateProtocolStatus() {
+    const protocol = protocolEl.value;
+    const isSecure = protocol === 'wss';
+    const isPageSecure = window.location.protocol === 'https:';
+    
+    if (isSecure) {
+      protocolStatus.innerHTML = '✅ Secure';
+      protocolStatus.style.color = 'var(--ok)';
+      protocolDisplay.textContent = 'WSS';
+      if (!isPageSecure) {
+        protocolStatus.innerHTML = '⚠️ Page not secure';
+        protocolStatus.style.color = 'var(--warn)';
+      }
+    } else {
+      if (isPageSecure) {
+        protocolStatus.innerHTML = '⚠️ Mixed Content';
+        protocolStatus.style.color = 'var(--err)';
+      } else {
+        protocolStatus.innerHTML = '⚠️ Insecure';
+        protocolStatus.style.color = 'var(--warn)';
+      }
+      protocolDisplay.textContent = 'WS';
+    }
+  }
+
+  protocolEl.addEventListener('change', updateProtocolStatus);
+
   dropZone.addEventListener('click', (e) => {
     if (e.target === dzChange) return;
     fileInput.click();
@@ -357,10 +420,20 @@
   sendBtn.addEventListener('click', () => {
     const host = hostEl.value.trim();
     const port = parseInt(portEl.value) || 50000;
+    const protocol = protocolEl.value;
+    
     if (!host || !selectedFile) return;
 
+    // Check for mixed content
+    const isPageSecure = window.location.protocol === 'https:';
+    if (isPageSecure && protocol === 'ws') {
+      log('⚠️ WARNING: Mixed Content - page is HTTPS but connecting via WS (insecure)', 'warn');
+      log('⚠️ This may be blocked by the browser. Use WSS instead.', 'warn');
+    }
+
     sendBtn.disabled = true;
-    log(`Connecting to ws://${host}:${port} …`, 'info');
+    const wsUrl = `${protocol}://${host}:${port}`;
+    log(`Connecting to ${wsUrl} …`, 'info');
 
     const reader = new FileReader();
 
@@ -369,7 +442,7 @@
       let ws;
 
       try {
-        ws = new WebSocket(`ws://${host}:${port}`);
+        ws = new WebSocket(wsUrl);
         ws.binaryType = 'arraybuffer';
       } catch (err) {
         log('Failed to create WebSocket: ' + err.message, 'err');
@@ -386,20 +459,31 @@
       ws.onopen = () => {
         clearTimeout(timeout);
         log(`Connected. Sending ${data.byteLength} bytes…`, 'info');
-        ws.send(data);
-        log(`✓ Sent ${fmtSize(data.byteLength)} to ${host}:${port}`, 'ok');
+        try {
+          ws.send(data);
+          log(`✓ Sent ${fmtSize(data.byteLength)} to ${host}:${port}`, 'ok');
+        } catch (sendErr) {
+          log(`✗ Failed to send: ${sendErr.message}`, 'err');
+        }
         ws.close();
         sendBtn.disabled = false;
       };
 
-      ws.onerror = () => {
+      ws.onerror = (err) => {
         clearTimeout(timeout);
-        log(`Connection failed — verify host, port, and that the server accepts WebSocket.`, 'err');
+        const errMsg = isPageSecure && protocol === 'ws' 
+          ? 'Connection failed. Mixed Content: HTTPS page cannot connect to WS (insecure) endpoint. Use WSS.' 
+          : `Connection failed — verify host, port, and that the server accepts ${protocol.toUpperCase()} connections.`;
+        log(errMsg, 'err');
         sendBtn.disabled = false;
       };
 
       ws.onclose = (ev) => {
         if (ev.wasClean) log('Connection closed.', '');
+        else if (ev.code === 1006) {
+          log('Connection closed abnormally. Check server is running.', 'err');
+          sendBtn.disabled = false;
+        }
       };
     };
 
@@ -410,6 +494,9 @@
 
     reader.readAsArrayBuffer(selectedFile);
   });
+
+  // Initialize
+  updateProtocolStatus();
 </script>
 </body>
 </html>
