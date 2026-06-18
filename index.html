@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Payload Sender</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Inter:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0d0f14;
+    --surface: #13151c;
+    --surface2: #1a1d27;
+    --border: rgba(255,255,255,0.07);
+    --border-focus: #5b6bff;
+    --text: #e4e8f0;
+    --muted: #6b7280;
+    --accent: #5b6bff;
+    --accent-dim: rgba(91,107,255,0.12);
+    --ok: #34d399;
+    --ok-dim: rgba(52,211,153,0.12);
+    --err: #f87171;
+    --err-dim: rgba(248,113,113,0.12);
+    --warn: #fbbf24;
+    --mono: 'JetBrains Mono', monospace;
+    --sans: 'Inter', system-ui, sans-serif;
+    --radius: 10px;
+  }
+
+  body {
+    font-family: var(--sans);
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem 1rem;
+  }
+
+  /* Header */
+  .header {
+    text-align: center;
+    margin-bottom: 2rem;
+  }
+  .header .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--accent);
+    background: var(--accent-dim);
+    border: 0.5px solid rgba(91,107,255,0.3);
+    border-radius: 100px;
+    padding: 4px 12px;
+    margin-bottom: 14px;
+    letter-spacing: 0.04em;
+  }
+  .header h1 {
+    font-size: 28px;
+    font-weight: 500;
+    color: var(--text);
+    letter-spacing: -0.02em;
+    margin-bottom: 6px;
+  }
+  .header p {
+    font-size: 14px;
+    color: var(--muted);
+  }
+
+  /* Card */
+  .card {
+    background: var(--surface);
+    border: 0.5px solid var(--border);
+    border-radius: 16px;
+    padding: 2rem;
+    width: 100%;
+    max-width: 500px;
+  }
+
+  /* Form */
+  .row {
+    display: grid;
+    grid-template-columns: 1fr 130px;
+    gap: 12px;
+    margin-bottom: 1.25rem;
+  }
+  .field { margin-bottom: 1.25rem; }
+  label {
+    display: block;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--muted);
+    margin-bottom: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  input[type="text"],
+  input[type="number"] {
+    width: 100%;
+    background: var(--bg);
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 14px;
+    padding: 10px 14px;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  input:focus { border-color: var(--border-focus); }
+  input::placeholder { color: #3a3d4a; }
+
+  /* Drop zone */
+  .drop-zone {
+    border: 1px dashed rgba(255,255,255,0.1);
+    border-radius: var(--radius);
+    padding: 1.75rem 1rem;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+    background: var(--bg);
+    margin-bottom: 1.25rem;
+    position: relative;
+  }
+  .drop-zone:hover { border-color: var(--accent); background: var(--accent-dim); }
+  .drop-zone.drag-over { border-color: var(--accent); background: var(--accent-dim); }
+  .drop-zone.has-file { border-style: solid; border-color: rgba(52,211,153,0.4); background: var(--ok-dim); }
+  .drop-zone svg { display: block; margin: 0 auto 10px; opacity: 0.4; }
+  .drop-zone.has-file svg { opacity: 0; height: 0; margin: 0; }
+  .dz-hint { font-size: 13px; color: var(--muted); }
+  .dz-hint span { color: var(--accent); text-decoration: underline; }
+  .dz-file { display: none; flex-direction: column; align-items: center; gap: 4px; }
+  .drop-zone.has-file .dz-file { display: flex; }
+  .drop-zone.has-file .dz-hint { display: none; }
+  .dz-file .name { font-family: var(--mono); font-size: 13px; color: var(--ok); font-weight: 500; }
+  .dz-file .size { font-size: 12px; color: var(--muted); }
+  .dz-file .change { font-size: 11px; color: var(--muted); margin-top: 4px; text-decoration: underline; cursor: pointer; }
+  input[type="file"] { display: none; }
+
+  /* Divider */
+  hr { border: none; border-top: 0.5px solid var(--border); margin: 1.5rem 0; }
+
+  /* Send button */
+  .send-btn {
+    width: 100%;
+    padding: 12px;
+    border-radius: var(--radius);
+    border: none;
+    cursor: pointer;
+    background: var(--accent);
+    color: #fff;
+    font-family: var(--sans);
+    font-size: 15px;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: opacity 0.15s, transform 0.1s;
+  }
+  .send-btn:hover:not(:disabled) { opacity: 0.88; }
+  .send-btn:active:not(:disabled) { transform: scale(0.98); }
+  .send-btn:disabled { background: var(--surface2); color: #3a3d4a; cursor: not-allowed; }
+  .send-btn svg { flex-shrink: 0; }
+
+  /* Log */
+  .log-box {
+    margin-top: 1.5rem;
+    background: var(--bg);
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius);
+    padding: 12px 14px;
+    font-family: var(--mono);
+    font-size: 12px;
+    line-height: 1.8;
+    max-height: 200px;
+    overflow-y: auto;
+    display: none;
+    scrollbar-width: thin;
+    scrollbar-color: var(--surface2) transparent;
+  }
+  .log-box.visible { display: block; }
+  .log-line { color: var(--muted); }
+  .log-line.ok { color: var(--ok); }
+  .log-line.err { color: var(--err); }
+  .log-line.info { color: var(--accent); }
+  .log-line.warn { color: var(--warn); }
+
+  /* Note */
+  .note {
+    font-size: 12px;
+    color: var(--muted);
+    background: var(--surface2);
+    border-radius: 8px;
+    padding: 10px 14px;
+    margin-bottom: 1.25rem;
+    border-left: 2px solid var(--accent);
+    line-height: 1.6;
+  }
+  .note strong { color: var(--text); }
+  .note code {
+    font-family: var(--mono);
+    font-size: 11px;
+    background: rgba(255,255,255,0.06);
+    padding: 1px 5px;
+    border-radius: 4px;
+  }
+
+  /* Footer */
+  .footer {
+    margin-top: 1.5rem;
+    font-size: 12px;
+    color: #3a3d4a;
+    text-align: center;
+    font-family: var(--mono);
+  }
+
+  @media (max-width: 480px) {
+    .row { grid-template-columns: 1fr; }
+    .card { padding: 1.5rem; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="badge">
+    <svg width="8" height="8" viewBox="0 0 8 8" fill="none"><circle cx="4" cy="4" r="3" fill="#5b6bff"/></svg>
+    tcp / websocket
+  </div>
+  <h1>Payload Sender</h1>
+  <p>Send binary files to a remote host</p>
+</div>
+
+<div class="card">
+  <div class="note">
+    <strong>Heads up:</strong> Browsers use WebSocket, not raw TCP. Point this at a WebSocket-enabled server or run a small proxy — see <code>ws_proxy.py</code> in the repo.
+  </div>
+
+  <div class="row">
+    <div>
+      <label for="host">Host / IP</label>
+      <input type="text" id="host" placeholder="192.168.1.100" autocomplete="off" spellcheck="false">
+    </div>
+    <div>
+      <label for="port">Port</label>
+      <input type="number" id="port" placeholder="50000" value="50000" min="1" max="65535">
+    </div>
+  </div>
+
+  <label>File</label>
+  <div class="drop-zone" id="dropZone" role="button" tabindex="0" aria-label="Select file to send">
+    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/>
+      <polyline points="7 9 12 4 17 9"/>
+      <line x1="12" y1="4" x2="12" y2="16"/>
+    </svg>
+    <div class="dz-hint">Drop file here or <span>click to browse</span></div>
+    <div class="dz-file">
+      <div class="name" id="dz-name"></div>
+      <div class="size" id="dz-size"></div>
+      <div class="change" id="dz-change">change file</div>
+    </div>
+  </div>
+  <input type="file" id="fileInput" aria-hidden="true">
+
+  <button class="send-btn" id="sendBtn" disabled>
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <line x1="22" y1="2" x2="11" y2="13"/>
+      <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+    </svg>
+    Send payload
+  </button>
+
+  <div class="log-box" id="logBox" role="log" aria-live="polite" aria-label="Connection log"></div>
+</div>
+
+<div class="footer">payload_sender · github pages</div>
+
+<script>
+  const dropZone  = document.getElementById('dropZone');
+  const fileInput = document.getElementById('fileInput');
+  const dzName    = document.getElementById('dz-name');
+  const dzSize    = document.getElementById('dz-size');
+  const dzChange  = document.getElementById('dz-change');
+  const sendBtn   = document.getElementById('sendBtn');
+  const logBox    = document.getElementById('logBox');
+  const hostEl    = document.getElementById('host');
+  const portEl    = document.getElementById('port');
+
+  let selectedFile = null;
+
+  function fmtSize(bytes) {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / 1048576).toFixed(2) + ' MB';
+  }
+
+  function log(msg, type = '') {
+    logBox.classList.add('visible');
+    const ts = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    const line = document.createElement('div');
+    line.className = 'log-line' + (type ? ' ' + type : '');
+    line.textContent = ts + '  ' + msg;
+    logBox.appendChild(line);
+    logBox.scrollTop = logBox.scrollHeight;
+  }
+
+  function updateBtn() {
+    sendBtn.disabled = !selectedFile || !hostEl.value.trim();
+  }
+
+  function setFile(file) {
+    selectedFile = file;
+    dzName.textContent = file.name;
+    dzSize.textContent = fmtSize(file.size);
+    dropZone.classList.add('has-file');
+    updateBtn();
+  }
+
+  dropZone.addEventListener('click', (e) => {
+    if (e.target === dzChange) return;
+    fileInput.click();
+  });
+  dzChange.addEventListener('click', () => fileInput.click());
+
+  dropZone.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fileInput.click(); }
+  });
+
+  dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+  dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+  dropZone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    dropZone.classList.remove('drag-over');
+    const file = e.dataTransfer.files[0];
+    if (file) setFile(file);
+  });
+
+  fileInput.addEventListener('change', () => {
+    if (fileInput.files[0]) setFile(fileInput.files[0]);
+    fileInput.value = '';
+  });
+
+  hostEl.addEventListener('input', updateBtn);
+
+  sendBtn.addEventListener('click', () => {
+    const host = hostEl.value.trim();
+    const port = parseInt(portEl.value) || 50000;
+    if (!host || !selectedFile) return;
+
+    sendBtn.disabled = true;
+    log(`Connecting to ws://${host}:${port} …`, 'info');
+
+    const reader = new FileReader();
+
+    reader.onload = (e) => {
+      const data = e.target.result;
+      let ws;
+
+      try {
+        ws = new WebSocket(`ws://${host}:${port}`);
+        ws.binaryType = 'arraybuffer';
+      } catch (err) {
+        log('Failed to create WebSocket: ' + err.message, 'err');
+        sendBtn.disabled = false;
+        return;
+      }
+
+      const timeout = setTimeout(() => {
+        log('Connection timed out after 8s.', 'err');
+        ws.close();
+        sendBtn.disabled = false;
+      }, 8000);
+
+      ws.onopen = () => {
+        clearTimeout(timeout);
+        log(`Connected. Sending ${data.byteLength} bytes…`, 'info');
+        ws.send(data);
+        log(`✓ Sent ${fmtSize(data.byteLength)} to ${host}:${port}`, 'ok');
+        ws.close();
+        sendBtn.disabled = false;
+      };
+
+      ws.onerror = () => {
+        clearTimeout(timeout);
+        log(`Connection failed — verify host, port, and that the server accepts WebSocket.`, 'err');
+        sendBtn.disabled = false;
+      };
+
+      ws.onclose = (ev) => {
+        if (ev.wasClean) log('Connection closed.', '');
+      };
+    };
+
+    reader.onerror = () => {
+      log('Failed to read file.', 'err');
+      sendBtn.disabled = false;
+    };
+
+    reader.readAsArrayBuffer(selectedFile);
+  });
+</script>
+</body>
+</html>
